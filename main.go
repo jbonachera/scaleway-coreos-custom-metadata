@@ -28,6 +28,7 @@ func main() {
 			templateStr := `COREOS_CUSTOM_HOSTNAME={{ .Hostname }}
 COREOS_CUSTOM_PRIVATE_IPV4={{ .PrivateIP }}
 COREOS_CUSTOM_PUBLIC_IPV4={{ .PublicIP.Address }}
+COREOS_CUSTOM_ZONE_ID={{ .Location.ZoneID }}
 `
 			template, err := template.New("").Parse(templateStr)
 			if err != nil {
