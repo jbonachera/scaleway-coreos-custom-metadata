@@ -1,0 +1,8 @@
+package: github.com/jbonachera/scaleway-coreos-custom-metadata
+import:
+- package: github.com/alecthomas/template
+- package: github.com/spf13/cobra
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
