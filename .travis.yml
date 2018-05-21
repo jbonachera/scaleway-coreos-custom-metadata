@@ -3,4 +3,13 @@ language: go
 services:
 - docker
 script:
-  - make build
+- make build
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key:
+    secure: wDThInVk0w5k7oF0oEUtYartGsy0630jifnvFgXVDfyzSAYYMPjhg7Cj7Ialpm8TqapF9TJSoxj1koba5SibqqZbeq3f2ajB3dv0jDrJzte4+OOCxb2gDVRYVGbt6QAezPgI+RlE5GaRdghrxmnKpsz4+7jGehWwQYiScsXLMPGlR58NF+klUWt7JxgiFYtj7U1NCpZ9/Eht6VqWHT33KD/VwjSxG+t58FIalTvwgd/ZB9fMbMeg19I+aZSwW9/pCtSoeHNrDJwJE3Ymb1MrP5cnuOlDMLemBmIVeBNWBFODvUhncBN0IkzIJO5MfB6ZlRISE8qDtnL4OWU81DT12xl3jRFkfzn+K4ZO/UQERvSJvx+EYZBVC3yoGF+9NOZPU3zxlpsFMnwh6UFf/qeK0bNKH4UhkkmGeQr8Tjugzd0oKjk8PS+e4fGXzLTf9RBECHTyIFAnCGO0DdIROEtkTlWfdR78Cd+4+aN/TnUbkBaADZ9VT68+R7VvUvN8Tlj1XYJe3lYDIS58C5NOtfgPuQK7D4WAr2DulsvMa5M6ulhbDXVAfraQ/zkaijyOVTLzqUuGJEK4snWSu0WFWgE+6NfHACPC3WaX4O/2J29fbscXciwcDCNr3woGURD9ClGlv+OKbBJ0RqxZY2VHMobZZGzKF3wZ7gSsopnvVPdAuVA=
+  file: "./scaleway-coreos-custom-metadata"
+  on:
+    repo: jbonachera/scaleway-coreos-custom-metadata
+    tags: true
