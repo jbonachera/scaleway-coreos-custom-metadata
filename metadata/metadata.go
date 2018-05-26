@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -56,7 +57,13 @@ type Metadata struct {
 // https://developer.scaleway.com/#metadata-server-metadata
 func Self(client httpGetter) (Metadata, error) {
 	md := Metadata{}
-	resp, err := client.Get(mdUrl)
+	err := fmt.Errorf("not called yet")
+	var resp *http.Response
+	count := 0
+	for err != nil && count < 5 {
+		count++
+		resp, err = client.Get(mdUrl)
+	}
 	if err != nil {
 		return md, err
 	}
