@@ -40,6 +40,10 @@ COREOS_CUSTOM_ZONE_ID={{ .Location.ZoneID }}
 			}
 			template.Execute(mdDest, md)
 			mdDest.Close()
+			err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0640)
+			if err != nil {
+				log.Fatal(err)
+			}
 			sshDest, err := os.Create("/home/core/.ssh/authorized_keys.d/scw-metadata")
 			if err != nil {
 				log.Fatal(err)
