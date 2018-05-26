@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/user"
+	"strconv"
 	"time"
 
 	"github.com/alecthomas/template"
@@ -13,6 +15,22 @@ import (
 )
 
 const mdFile = "/run/metadata/coreos"
+
+func resolveId(name string) (int, int, error) {
+	user, err := user.Lookup(name)
+	if err != nil {
+		return 0, 0, err
+	}
+	uid, err := strconv.ParseInt(user.Uid, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	gid, err := strconv.ParseInt(user.Gid, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(uid), int(gid), nil
+}
 
 func main() {
 	app := cobra.Command{
@@ -40,11 +58,24 @@ COREOS_CUSTOM_ZONE_ID={{ .Location.ZoneID }}
 			}
 			template.Execute(mdDest, md)
 			mdDest.Close()
-			err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0640)
+			uid, gid, err := resolveId("core")
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0600)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = os.Chown("/home/core/.ssh/authorized_keys.d/", uid, gid)
 			if err != nil {
 				log.Fatal(err)
 			}
 			sshDest, err := os.Create("/home/core/.ssh/authorized_keys.d/scw-metadata")
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = os.Chmod("/home/core/.ssh/authorized_keys.d/scw-metadata", 0600)
+			err = os.Chown("/home/core/.ssh/authorized_keys.d/scw-metadata", uid, gid)
 			if err != nil {
 				log.Fatal(err)
 			}
