@@ -62,7 +62,7 @@ COREOS_CUSTOM_ZONE_ID={{ .Location.ZoneID }}
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0600)
+			err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0700)
 			if err != nil {
 				log.Fatal(err)
 			}
