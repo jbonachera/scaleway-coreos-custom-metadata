@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/user"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alecthomas/template"
@@ -59,6 +61,40 @@ func saveSSHKeys(md metadata.Metadata) error {
 	}
 	return nil
 }
+
+type renderedMD struct {
+	Hostname  string
+	PrivateIP string
+	PublicIP  string
+	Zone      string
+	Tags      []metadata.KVTag
+}
+
+func render(out io.Writer, md metadata.Metadata) error {
+	funcMap := template.FuncMap{
+		"ToUpper": strings.ToUpper,
+	}
+
+	templateStr := `COREOS_CUSTOM_HOSTNAME={{ .Hostname }}
+COREOS_CUSTOM_PRIVATE_IPV4={{ .PrivateIP }}
+COREOS_CUSTOM_PUBLIC_IPV4={{ .PublicIP }}
+COREOS_CUSTOM_ZONE_ID={{ .Zone }}
+{{ range $idx, $tag := .Tags }}COREOS_CUSTOM_TAG_{{ $tag.Key | ToUpper }}={{ $tag.Value }}
+{{ end }}`
+	template, err := template.New("").Funcs(funcMap).Parse(templateStr)
+	if err != nil {
+		return err
+	}
+
+	return template.Execute(out, renderedMD{
+		Hostname:  md.Hostname,
+		PrivateIP: md.PrivateIP,
+		PublicIP:  md.PublicIP.Address,
+		Zone:      md.Location.ZoneID,
+		Tags:      md.KVTags(),
+	})
+}
+
 func main() {
 	app := cobra.Command{
 		Use:   "scaleway-coreos-custom-metadata",
@@ -70,21 +106,16 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			templateStr := `COREOS_CUSTOM_HOSTNAME={{ .Hostname }}
-COREOS_CUSTOM_PRIVATE_IPV4={{ .PrivateIP }}
-COREOS_CUSTOM_PUBLIC_IPV4={{ .PublicIP.Address }}
-COREOS_CUSTOM_ZONE_ID={{ .Location.ZoneID }}
-`
-			template, err := template.New("").Parse(templateStr)
-			if err != nil {
-				fmt.Fprintln(cmd.OutOrStderr(), err)
-			}
 			mdDest, err := os.Create(mdFile)
 			if err != nil {
-				log.Fatal(err)
+				fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to open environment file: %v", err)
+			} else {
+				defer mdDest.Close()
+				err = render(mdDest, md)
+				if err != nil {
+					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
+				}
 			}
-			template.Execute(mdDest, md)
-			mdDest.Close()
 			err = saveSSHKeys(md)
 			if err != nil {
 				log.Fatal(err)

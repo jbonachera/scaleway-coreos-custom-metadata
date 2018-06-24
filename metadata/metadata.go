@@ -72,12 +72,20 @@ func Self(client httpGetter) (Metadata, error) {
 	return md, json.NewDecoder(resp.Body).Decode(&md)
 }
 
+type KVTag struct {
+	Key   string
+	Value string
+}
+
 // KVTags retunrns a map of all tags looking like a key-value association
-func (m *Metadata) KVTags() map[string]string {
-	set := make(map[string]string, 0)
+func (m *Metadata) KVTags() []KVTag {
+	set := make([]KVTag, 0)
 	for _, tag := range m.Tags {
 		if position := strings.IndexRune(tag, '='); position > -1 && position < len(tag) {
-			set[tag[:position]] = tag[position+1:]
+			set = append(set, KVTag{
+				Key:   tag[:position],
+				Value: tag[position+1:],
+			})
 		}
 	}
 	return set

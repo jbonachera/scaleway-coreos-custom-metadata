@@ -98,6 +98,7 @@ func TestKVTagsf(t *testing.T) {
 	md, _ := Self(h)
 	tags := md.KVTags()
 	if assert.Equal(t, 1, len(tags)) {
-		assert.Equal(t, "value", tags["key"])
+		assert.Equal(t, "key", tags[0].Key)
+		assert.Equal(t, "value", tags[0].Value)
 	}
 }
