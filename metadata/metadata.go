@@ -13,8 +13,8 @@ type httpGetter interface {
 const mdUrl = "http://169.254.42.42/conf?format=json"
 
 type Metadata struct {
-	Tags        []interface{} `json:"tags"`
-	StateDetail string        `json:"state_detail"`
+	Tags        []string `json:"tags"`
+	StateDetail string   `json:"state_detail"`
 	PublicIP    struct {
 		Dynamic bool   `json:"dynamic"`
 		ID      string `json:"id"`

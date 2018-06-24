@@ -23,7 +23,7 @@ func (m *mockBody) Read(b []byte) (int, error) {
 
 func (m *mockMDClient) Get(url string) (*http.Response, error) {
 	body := strings.NewReader(`{
-		"tags": [],
+		"tags": ["foo", "bar", "key=value"],
 		"state_detail": "booted",
 		"public_ip": {
 			"dynamic": true,
@@ -91,4 +91,5 @@ func TestSelf(t *testing.T) {
 	md, err := Self(h)
 	assert.Nil(t, err)
 	assert.Equal(t, "00000000-0000-0000-0000-000000000000", md.Organization)
+	assert.Equal(t, []string{"foo", "bar", "key=value"}, md.Tags)
 }
