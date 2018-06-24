@@ -31,7 +31,34 @@ func resolveId(name string) (int, int, error) {
 	}
 	return int(uid), int(gid), nil
 }
-
+func saveSSHKeys(md metadata.Metadata) error {
+	uid, gid, err := resolveId("core")
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0700)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	err = os.Chown("/home/core/.ssh/authorized_keys.d/", uid, gid)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	sshDest, err := os.Create("/home/core/.ssh/authorized_keys.d/scw-metadata")
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	defer sshDest.Close()
+	err = os.Chmod("/home/core/.ssh/authorized_keys.d/scw-metadata", 0600)
+	err = os.Chown("/home/core/.ssh/authorized_keys.d/scw-metadata", uid, gid)
+	if err != nil {
+		return err
+	}
+	for _, keyMD := range md.SSHPublicKeys {
+		fmt.Fprint(sshDest, keyMD.Key)
+	}
+	return nil
+}
 func main() {
 	app := cobra.Command{
 		Use:   "scaleway-coreos-custom-metadata",
@@ -58,31 +85,10 @@ COREOS_CUSTOM_ZONE_ID={{ .Location.ZoneID }}
 			}
 			template.Execute(mdDest, md)
 			mdDest.Close()
-			uid, gid, err := resolveId("core")
+			err = saveSSHKeys(md)
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0700)
-			if err != nil {
-				log.Fatal(err)
-			}
-			err = os.Chown("/home/core/.ssh/authorized_keys.d/", uid, gid)
-			if err != nil {
-				log.Fatal(err)
-			}
-			sshDest, err := os.Create("/home/core/.ssh/authorized_keys.d/scw-metadata")
-			if err != nil {
-				log.Fatal(err)
-			}
-			err = os.Chmod("/home/core/.ssh/authorized_keys.d/scw-metadata", 0600)
-			err = os.Chown("/home/core/.ssh/authorized_keys.d/scw-metadata", uid, gid)
-			if err != nil {
-				log.Fatal(err)
-			}
-			for _, keyMD := range md.SSHPublicKeys {
-				fmt.Fprint(sshDest, keyMD.Key)
-			}
-			sshDest.Close()
 		},
 	}
 	app.Execute()
