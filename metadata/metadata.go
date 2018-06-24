@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type httpGetter interface {
@@ -69,4 +70,15 @@ func Self(client httpGetter) (Metadata, error) {
 	}
 	defer resp.Body.Close()
 	return md, json.NewDecoder(resp.Body).Decode(&md)
+}
+
+// KVTags retunrns a map of all tags looking like a key-value association
+func (m *Metadata) KVTags() map[string]string {
+	set := make(map[string]string, 0)
+	for _, tag := range m.Tags {
+		if position := strings.IndexRune(tag, '='); position > -1 && position < len(tag) {
+			set[tag[:position]] = tag[position+1:]
+		}
+	}
+	return set
 }

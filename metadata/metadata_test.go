@@ -93,3 +93,11 @@ func TestSelf(t *testing.T) {
 	assert.Equal(t, "00000000-0000-0000-0000-000000000000", md.Organization)
 	assert.Equal(t, []string{"foo", "bar", "key=value"}, md.Tags)
 }
+func TestKVTagsf(t *testing.T) {
+	h := &mockMDClient{}
+	md, _ := Self(h)
+	tags := md.KVTags()
+	if assert.Equal(t, 1, len(tags)) {
+		assert.Equal(t, "value", tags["key"])
+	}
+}
