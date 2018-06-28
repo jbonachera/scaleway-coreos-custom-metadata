@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/user"
@@ -13,10 +14,14 @@ import (
 
 	"github.com/alecthomas/template"
 	"github.com/jbonachera/scaleway-coreos-custom-metadata/metadata"
+	"github.com/jbonachera/scaleway-coreos-custom-metadata/userdata"
 	"github.com/spf13/cobra"
 )
 
-const mdFile = "/run/metadata/coreos"
+const (
+	mdFile = "/run/metadata/coreos"
+	udFile = "/etc/userdata.env"
+)
 
 func resolveId(name string) (int, int, error) {
 	user, err := user.Lookup(name)
@@ -70,7 +75,21 @@ type renderedMD struct {
 	Tags      []metadata.KVTag
 }
 
-func render(out io.Writer, md metadata.Metadata) error {
+func renderUserdata(out io.Writer, ud userdata.Userdata) error {
+	funcMap := template.FuncMap{
+		"ToUpper": strings.ToUpper,
+	}
+
+	templateStr := `{{ range $idx, $tag := . }}{{ $tag.Key | ToUpper }}={{ $tag.Value }}
+	{{ end }}`
+	template, err := template.New("").Funcs(funcMap).Parse(templateStr)
+	if err != nil {
+		return err
+	}
+
+	return template.Execute(out, ud)
+}
+func renderMetadata(out io.Writer, md metadata.Metadata) error {
 	funcMap := template.FuncMap{
 		"ToUpper": strings.ToUpper,
 	}
@@ -95,12 +114,43 @@ COREOS_CUSTOM_ZONE_ID={{ .Zone }}
 	})
 }
 
+func scalewayLowPortDialer() *net.Dialer {
+	iface, err := net.InterfaceByName("eth0")
+	if err != nil {
+		log.Fatal(err)
+	}
+	addresses, err := iface.Addrs()
+	if err != nil {
+		log.Fatal(err)
+	}
+	localIPAddr := strings.Split(addresses[0].String(), "/")[0]
+	localAddr, err := net.ResolveTCPAddr("tcp4",
+		fmt.Sprintf("%s:%d", localIPAddr, 50))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &net.Dialer{
+		LocalAddr: localAddr,
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: false,
+	}
+}
+
 func main() {
 	app := cobra.Command{
 		Use:   "scaleway-coreos-custom-metadata",
 		Short: "Fetch server metadata from scaleway API",
 		Run: func(cmd *cobra.Command, _ []string) {
+
 			client := http.DefaultClient
+			client.Transport = &http.Transport{
+				DialContext:           (scalewayLowPortDialer()).DialContext,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			}
 			client.Timeout = 10 * time.Second
 			md, err := metadata.Self(client)
 			if err != nil {
@@ -111,7 +161,22 @@ func main() {
 				fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to open environment file: %v", err)
 			} else {
 				defer mdDest.Close()
-				err = render(mdDest, md)
+				err = renderMetadata(mdDest, md)
+				if err != nil {
+					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
+				}
+			}
+			ud, err := userdata.Self(client)
+			if err != nil {
+				log.Fatal(err)
+			}
+			udDest, err := os.Create(udFile)
+			os.Chmod(udFile, 0600)
+			if err != nil {
+				fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to open environment file: %v", err)
+			} else {
+				defer mdDest.Close()
+				err = renderUserdata(udDest, ud)
 				if err != nil {
 					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
 				}

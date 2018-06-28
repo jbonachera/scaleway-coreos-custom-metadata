@@ -19,7 +19,7 @@ func TestRender(t *testing.T) {
 		},
 	}
 	buf := bytes.NewBufferString("")
-	err := render(buf, md)
+	err := renderMetadata(buf, md)
 	assert.Nil(t, err)
 	assert.Equal(t, `COREOS_CUSTOM_HOSTNAME=host-1
 COREOS_CUSTOM_PRIVATE_IPV4=10.0.0.1
