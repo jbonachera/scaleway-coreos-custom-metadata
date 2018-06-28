@@ -166,6 +166,10 @@ func main() {
 					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
 				}
 			}
+			err = saveSSHKeys(md)
+			if err != nil {
+				log.Fatal(err)
+			}
 			ud, err := userdata.Self(client)
 			if err != nil {
 				log.Fatal(err)
@@ -180,10 +184,6 @@ func main() {
 				if err != nil {
 					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
 				}
-			}
-			err = saveSSHKeys(md)
-			if err != nil {
-				log.Fatal(err)
 			}
 		},
 	}
