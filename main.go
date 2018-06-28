@@ -179,7 +179,7 @@ func main() {
 			if err != nil {
 				fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to open environment file: %v", err)
 			} else {
-				defer mdDest.Close()
+				defer udDest.Close()
 				err = renderUserdata(udDest, ud)
 				if err != nil {
 					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
