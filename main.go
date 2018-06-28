@@ -23,7 +23,7 @@ const (
 	udFile = "/etc/userdata.env"
 )
 
-func resolveId(name string) (int, int, error) {
+func resolveID(name string) (int, int, error) {
 	user, err := user.Lookup(name)
 	if err != nil {
 		return 0, 0, err
@@ -39,7 +39,7 @@ func resolveId(name string) (int, int, error) {
 	return int(uid), int(gid), nil
 }
 func saveSSHKeys(md metadata.Metadata) error {
-	uid, gid, err := resolveId("core")
+	uid, gid, err := resolveID("core")
 	if err != nil {
 		return err
 	}
@@ -79,14 +79,13 @@ func renderUserdata(out io.Writer, ud userdata.Userdata) error {
 	funcMap := template.FuncMap{
 		"ToUpper": strings.ToUpper,
 	}
-
-	templateStr := `{{ range $idx, $tag := . }}{{ $tag.Key | ToUpper }}={{ $tag.Value }}
-	{{ end }}`
+	templateStr := `{{ range $key, $value := . }}
+{{ $key | ToUpper }}={{ $value }}
+{{ end }}`
 	template, err := template.New("").Funcs(funcMap).Parse(templateStr)
 	if err != nil {
 		return err
 	}
-
 	return template.Execute(out, ud)
 }
 func renderMetadata(out io.Writer, md metadata.Metadata) error {
@@ -137,35 +136,67 @@ func scalewayLowPortDialer() *net.Dialer {
 	}
 }
 
+func httpClient() *http.Client {
+	client := http.DefaultClient
+	client.Transport = &http.Transport{
+		DialContext:           (scalewayLowPortDialer()).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	client.Timeout = 10 * time.Second
+	return client
+}
+
+func saveMD(md metadata.Metadata, path string) error {
+	fd, err := os.Create(path)
+	if err != nil {
+		return fail("open environment file", err)
+	}
+	err = renderMetadata(fd, md)
+	if err != nil {
+		fd.Close()
+		return fail("render environment file", err)
+	}
+	return fd.Close()
+}
+func saveUD(ud userdata.Userdata, path string) error {
+	fd, err := os.Create(path)
+	if err != nil {
+		return fail("open environment file", err)
+	}
+	err = os.Chmod(udFile, 0600)
+	if err != nil {
+		fd.Close()
+		return fail("set userdata environment file permissions", err)
+	}
+	err = renderUserdata(fd, ud)
+	if err != nil {
+		fd.Close()
+		return fail("render environment file", err)
+	}
+	return fd.Close()
+}
+
+func fail(action string, err error) error {
+	return fmt.Errorf("failed to %s: %v", action, err)
+}
 func main() {
 	app := cobra.Command{
 		Use:   "scaleway-coreos-custom-metadata",
 		Short: "Fetch server metadata from scaleway API",
 		Run: func(cmd *cobra.Command, _ []string) {
-
-			client := http.DefaultClient
-			client.Transport = &http.Transport{
-				DialContext:           (scalewayLowPortDialer()).DialContext,
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			}
-			client.Timeout = 10 * time.Second
+			client := httpClient()
 			md, err := metadata.Self(client)
 			if err != nil {
 				log.Fatal(err)
 			}
-			mdDest, err := os.Create(mdFile)
+			err = saveMD(md, mdFile)
 			if err != nil {
-				fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to open environment file: %v", err)
-			} else {
-				defer mdDest.Close()
-				err = renderMetadata(mdDest, md)
-				if err != nil {
-					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
-				}
+				log.Fatal(err)
 			}
+			log.Printf("INFO: saved metadata in %s", mdFile)
 			err = saveSSHKeys(md)
 			if err != nil {
 				log.Fatal(err)
@@ -174,17 +205,12 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			udDest, err := os.Create(udFile)
-			os.Chmod(udFile, 0600)
+			log.Printf("INFO: fetched %d userdata", len(ud))
+			err = saveUD(ud, udFile)
 			if err != nil {
-				fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to open environment file: %v", err)
-			} else {
-				defer udDest.Close()
-				err = renderUserdata(udDest, ud)
-				if err != nil {
-					fmt.Fprintf(cmd.OutOrStderr(), "WARN: failed to render environment file: %v", err)
-				}
+				log.Fatal(err)
 			}
+			log.Printf("INFO: saved userdata in %s", udFile)
 		},
 	}
 	app.Execute()

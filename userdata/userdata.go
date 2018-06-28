@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -51,9 +50,7 @@ func Self(client httpGetter) (Userdata, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Println(item)
 		data[elt] = item
-
 	}
 	return data, nil
 }
