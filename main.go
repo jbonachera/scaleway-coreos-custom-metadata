@@ -187,6 +187,10 @@ func main() {
 		Use:   "scaleway-coreos-custom-metadata",
 		Short: "Fetch server metadata from scaleway API",
 		Run: func(cmd *cobra.Command, _ []string) {
+			udCount, err := cmd.Flags().GetString("wait-for-userdata-count")
+			if err != nil {
+				log.Fatal(err)
+			}
 			client := httpClient()
 			md, err := metadata.Self(client)
 			if err != nil {
@@ -205,7 +209,27 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Printf("INFO: fetched %d userdata", len(ud))
+			if udCount != "" {
+				ticker := time.NewTicker(5 * time.Second)
+				defer ticker.Stop()
+				for {
+					if v, ok := ud[udCount]; ok {
+						count, err := strconv.ParseInt(v, 10, 64)
+						if err != nil {
+							log.Printf("WARN: failed to parse as an int the content of %s key: %s", udCount, v)
+							break
+						}
+						if len(ud) >= int(count) {
+							break
+						}
+						log.Printf("INFO: fetched %d/%d userdata", len(ud), count)
+					} else {
+						log.Printf("INFO: Waiting for %s key to be available", udCount)
+					}
+					<-ticker.C
+				}
+			}
+			log.Printf("INFO: fetched all %d userdata", len(ud))
 			err = saveUD(ud, udFile)
 			if err != nil {
 				log.Fatal(err)
@@ -213,5 +237,6 @@ func main() {
 			log.Printf("INFO: saved userdata in %s", udFile)
 		},
 	}
+	app.Flags().StringP("wait-for-userdata-count", "c", "", "wait for the given key to appear, and consider its content as the number of keys to wait")
 	app.Execute()
 }
