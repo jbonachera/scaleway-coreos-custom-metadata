@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
 	"strconv"
 	"strings"
@@ -64,7 +65,8 @@ func saveSSHKeys(md metadata.Metadata) error {
 	for _, keyMD := range md.SSHPublicKeys {
 		fmt.Fprint(sshDest, keyMD.Key)
 	}
-	return nil
+	keysUpdater := exec.Command("/usr/bin/update-ssh-keys", "-u", "core")
+	return keysUpdater.Run()
 }
 
 type renderedMD struct {
