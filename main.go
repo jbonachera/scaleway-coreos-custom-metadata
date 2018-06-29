@@ -97,7 +97,7 @@ func renderMetadata(out io.Writer, md metadata.Metadata) error {
 COREOS_CUSTOM_PRIVATE_IPV4={{ .PrivateIP }}
 COREOS_CUSTOM_PUBLIC_IPV4={{ .PublicIP }}
 COREOS_CUSTOM_ZONE_ID={{ .Zone }}
-{{ range $idx, $tag := .Tags }}COREOS_CUSTOM_TAG_{{ $tag.Key | ToUpper }}={{ $tag.Value }}
+{{ range $tag := .Tags }}COREOS_CUSTOM_TAG_{{ $tag.Key | ToUpper }}={{ $tag.Value }}
 {{ end }}`
 	template, err := template.New("").Funcs(funcMap).Parse(templateStr)
 	if err != nil {
