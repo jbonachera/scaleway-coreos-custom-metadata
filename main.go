@@ -126,7 +126,7 @@ func scalewayLowPortDialer() *net.Dialer {
 	}
 	localIPAddr := strings.Split(addresses[0].String(), "/")[0]
 	localAddr, err := net.ResolveTCPAddr("tcp4",
-		fmt.Sprintf("%s:%d", localIPAddr, 50))
+		fmt.Sprintf("%s:%d", localIPAddr, 10))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -141,11 +141,9 @@ func scalewayLowPortDialer() *net.Dialer {
 func httpClient() *http.Client {
 	client := http.DefaultClient
 	client.Transport = &http.Transport{
-		DialContext:           (scalewayLowPortDialer()).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
+		DialContext:     (scalewayLowPortDialer()).DialContext,
+		MaxIdleConns:    10,
+		IdleConnTimeout: 90 * time.Second,
 	}
 	client.Timeout = 10 * time.Second
 	return client
@@ -191,7 +189,7 @@ func main() {
 		Run: func(cmd *cobra.Command, _ []string) {
 			udCount, err := cmd.Flags().GetString("wait-for-userdata-count")
 			if err != nil {
-				log.Fatal(err)
+				udCount = ""
 			}
 			client := httpClient()
 			md, err := metadata.Self(client)
