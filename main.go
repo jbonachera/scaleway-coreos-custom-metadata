@@ -116,20 +116,26 @@ COREOS_CUSTOM_ZONE_ID={{ .Zone }}
 }
 
 func scalewayLowPortDialer() *net.Dialer {
-	iface, err := net.InterfaceByName("eth0")
-	if err != nil {
-		log.Fatal(err)
+	localAddr := &net.TCPAddr{
+		Port: 10,
 	}
-	addresses, err := iface.Addrs()
-	if err != nil {
-		log.Fatal(err)
+	for {
+		// Strive to find an available port lower than 1024
+		if localAddr.Port >= 1024 {
+			log.Fatal("failed to find a useable port lower than 1024")
+		}
+		ln, err := net.ListenTCP("tcp4", localAddr)
+		if err != nil {
+			localAddr.Port++
+		} else {
+			err := ln.Close()
+			if err != nil {
+				log.Fatalf("failed to close temporary TCP listener on :%d", localAddr.Port)
+			}
+			break
+		}
 	}
-	localIPAddr := strings.Split(addresses[0].String(), "/")[0]
-	localAddr, err := net.ResolveTCPAddr("tcp4",
-		fmt.Sprintf("%s:%d", localIPAddr, 10))
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	return &net.Dialer{
 		LocalAddr: localAddr,
 		Timeout:   30 * time.Second,
