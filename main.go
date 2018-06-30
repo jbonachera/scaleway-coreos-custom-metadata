@@ -40,26 +40,29 @@ func resolveID(name string) (int, int, error) {
 	}
 	return int(uid), int(gid), nil
 }
-func saveSSHKeys(md metadata.Metadata) error {
-	uid, gid, err := resolveID("core")
+func saveSSHKeys(user string, md metadata.Metadata) error {
+	uid, gid, err := resolveID(user)
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll("/home/core/.ssh/authorized_keys.d/", 0700)
+	home := fmt.Sprintf("/home/%s", user)
+	keysDir := fmt.Sprintf("%s/.ssh/authorized_keys.d/", home)
+	err = os.MkdirAll(keysDir, 0700)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
-	err = os.Chown("/home/core/.ssh/authorized_keys.d/", uid, gid)
+	err = os.Chown(keysDir, uid, gid)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
-	sshDest, err := os.Create("/home/core/.ssh/authorized_keys.d/scw-metadata")
+	keysFile := fmt.Sprintf("%s/scw-metadata", keysDir)
+	sshDest, err := os.Create(keysFile)
 	if err != nil && !os.IsExist(err) {
 		log.Fatal(err)
 	}
 	defer sshDest.Close()
-	err = os.Chmod("/home/core/.ssh/authorized_keys.d/scw-metadata", 0600)
-	err = os.Chown("/home/core/.ssh/authorized_keys.d/scw-metadata", uid, gid)
+	err = os.Chmod(keysFile, 0600)
+	err = os.Chown(keysFile, uid, gid)
 	if err != nil {
 		return err
 	}
@@ -189,6 +192,40 @@ func saveUD(ud userdata.Userdata, path string) error {
 func fail(action string, err error) error {
 	return fmt.Errorf("failed to %s: %v", action, err)
 }
+
+func SSHKeys() *cobra.Command {
+	return &cobra.Command{
+		Use:   "ssh-keys",
+		Short: "fetch ssh-keys for given user",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			user := args[0]
+			retries := 5
+			client := httpClient()
+			var (
+				md  metadata.Metadata
+				err error
+			)
+			for retries > 0 {
+				md, err = metadata.Self(client)
+				if err == nil {
+					break
+				}
+				time.Sleep(5 * time.Second)
+				retries--
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = saveSSHKeys(user, md)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("INFO: saved ssh-keys for user %q", user)
+		},
+	}
+}
+
 func main() {
 	app := cobra.Command{
 		Use:   "scaleway-coreos-custom-metadata",
@@ -217,10 +254,6 @@ func main() {
 				log.Fatal(err)
 			}
 			log.Printf("INFO: saved metadata in %s", mdFile)
-			err = saveSSHKeys(md)
-			if err != nil {
-				log.Fatal(err)
-			}
 			ud, err := userdata.Self(client)
 			if err != nil {
 				log.Fatal(err)
@@ -261,5 +294,6 @@ func main() {
 		},
 	}
 	app.Flags().StringP("wait-for-userdata-count", "c", "", "wait for the given key to appear, and consider its content as the number of keys to wait")
+	app.AddCommand(SSHKeys())
 	app.Execute()
 }
