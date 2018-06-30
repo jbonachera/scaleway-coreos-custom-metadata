@@ -254,7 +254,7 @@ func main() {
 			log.Printf("INFO: saved metadata in %s", mdFile)
 			ud, err := userdata.Self(client)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("failed to fetch userdata: %v", err)
 			}
 			if udCount != "" {
 				ticker := time.NewTicker(5 * time.Second)
