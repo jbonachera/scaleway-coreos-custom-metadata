@@ -263,8 +263,8 @@ func main() {
 					if v, ok := ud[udCount]; ok {
 						count, err := strconv.ParseInt(v, 10, 64)
 						if err != nil {
-							log.Printf("WARN: failed to parse as an int the content of %s key: %s", udCount, v)
-							break
+							log.Printf("WARN: failed to parse as an int the content of %s key: %v", udCount, err)
+							continue
 						}
 						if len(ud) >= int(count) {
 							break
