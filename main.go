@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -120,36 +121,35 @@ COREOS_CUSTOM_ZONE_ID={{ .Zone }}
 	})
 }
 
-func scalewayLowPortDialer() *net.Dialer {
-	localAddr := &net.TCPAddr{
-		Port: rand.Intn(1023),
-	}
-	for {
-		// Strive to find an available port lower than 1024
-		ln, err := net.ListenTCP("tcp4", localAddr)
-		if err != nil {
-			localAddr.Port = rand.Intn(1023)
-		} else {
-			err := ln.Close()
-			if err != nil {
-				log.Fatalf("failed to close temporary TCP listener on :%d", localAddr.Port)
-			}
-			break
-		}
-	}
-	log.Printf("INFO: using local port %d", localAddr.Port)
-	return &net.Dialer{
-		LocalAddr: localAddr,
+func scalewayLowPortDialer(ctx context.Context, network, addr string) (net.Conn, error) {
+	port := rand.Intn(1023)
+	dialer := &net.Dialer{
+		LocalAddr: &net.TCPAddr{
+			Port: port,
+		},
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 		DualStack: false,
+	}
+	for {
+		// Strive to find an available port lower than 1024
+		conn, err := dialer.DialContext(ctx, network, addr)
+		if err != nil {
+			port = rand.Intn(1023)
+			dialer.LocalAddr = &net.TCPAddr{
+				Port: port,
+			}
+		} else {
+			log.Printf("INFO: using local port %d", port)
+			return conn, nil
+		}
 	}
 }
 
 func httpClient() *http.Client {
 	client := http.DefaultClient
 	client.Transport = &http.Transport{
-		DialContext:     (scalewayLowPortDialer()).DialContext,
+		DialContext:     scalewayLowPortDialer,
 		MaxIdleConns:    10,
 		IdleConnTimeout: 90 * time.Second,
 	}
