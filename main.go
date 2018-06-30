@@ -199,7 +199,7 @@ func SSHKeys() *cobra.Command {
 		Run: func(_ *cobra.Command, args []string) {
 			user := args[0]
 			retries := 5
-			client := httpClient()
+			client := http.DefaultClient
 			var (
 				md  metadata.Metadata
 				err error
