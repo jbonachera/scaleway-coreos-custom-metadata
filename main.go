@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -121,16 +122,13 @@ COREOS_CUSTOM_ZONE_ID={{ .Zone }}
 
 func scalewayLowPortDialer() *net.Dialer {
 	localAddr := &net.TCPAddr{
-		Port: 10,
+		Port: rand.Intn(1023),
 	}
 	for {
 		// Strive to find an available port lower than 1024
-		if localAddr.Port >= 1024 {
-			log.Fatal("failed to find a useable port lower than 1024")
-		}
 		ln, err := net.ListenTCP("tcp4", localAddr)
 		if err != nil {
-			localAddr.Port++
+			localAddr.Port = rand.Intn(1023)
 		} else {
 			err := ln.Close()
 			if err != nil {
@@ -139,7 +137,7 @@ func scalewayLowPortDialer() *net.Dialer {
 			break
 		}
 	}
-
+	log.Printf("INFO: using local port %d", localAddr.Port)
 	return &net.Dialer{
 		LocalAddr: localAddr,
 		Timeout:   30 * time.Second,
