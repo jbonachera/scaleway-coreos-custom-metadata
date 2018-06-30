@@ -15,6 +15,7 @@ import (
 
 	"github.com/alecthomas/template"
 	"github.com/jbonachera/scaleway-coreos-custom-metadata/metadata"
+	"github.com/jbonachera/scaleway-coreos-custom-metadata/state"
 	"github.com/jbonachera/scaleway-coreos-custom-metadata/userdata"
 	"github.com/spf13/cobra"
 )
@@ -250,6 +251,13 @@ func main() {
 				log.Fatal(err)
 			}
 			log.Printf("INFO: saved userdata in %s", udFile)
+			err = state.SignalBooted(client)
+			if err != nil {
+				log.Printf("ERROR: failed to signal the control plane we booted")
+				return
+			} else {
+				log.Printf("INFO: signaled the control plane we booted")
+			}
 		},
 	}
 	app.Flags().StringP("wait-for-userdata-count", "c", "", "wait for the given key to appear, and consider its content as the number of keys to wait")
