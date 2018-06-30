@@ -197,8 +197,17 @@ func main() {
 			if err != nil {
 				udCount = ""
 			}
+			retries := 5
 			client := httpClient()
-			md, err := metadata.Self(client)
+			var md metadata.Metadata
+			for retries > 0 {
+				md, err = metadata.Self(client)
+				if err == nil {
+					break
+				}
+				time.Sleep(5 * time.Second)
+				retries--
+			}
 			if err != nil {
 				log.Fatal(err)
 			}
