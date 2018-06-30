@@ -241,12 +241,14 @@ func main() {
 				if err == nil {
 					break
 				}
+				log.Println("WARN: failed to load metadata from API, will retry in 5s")
 				time.Sleep(5 * time.Second)
 				retries--
 			}
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("failed to fetch metadata after 5 retries: %v", err)
 			}
+			log.Println("INFO: loaded metadata from API")
 			err = saveMD(md, mdFile)
 			if err != nil {
 				log.Fatal(err)
