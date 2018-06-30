@@ -274,6 +274,10 @@ func main() {
 						log.Printf("INFO: Waiting for %s key to be available", udCount)
 					}
 					<-ticker.C
+					ud, err = userdata.Self(client)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 			}
 			log.Printf("INFO: fetched all %d userdata", len(ud))
