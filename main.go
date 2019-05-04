@@ -262,16 +262,16 @@ func main() {
 				ticker := time.NewTicker(5 * time.Second)
 				defer ticker.Stop()
 				for {
-					if v, ok := ud[udCount]; ok {
+					if v, ok := ud[udCount]; ok && v != "" {
 						count, err := strconv.ParseInt(v, 10, 64)
-						if err != nil {
+						if err == nil {
+							if len(ud) >= int(count) {
+								break
+							}
+							log.Printf("INFO: fetched %d/%d userdata", len(ud), count)
+						} else {
 							log.Printf("WARN: failed to parse as an int the content of %s key: %v", udCount, err)
-							continue
 						}
-						if len(ud) >= int(count) {
-							break
-						}
-						log.Printf("INFO: fetched %d/%d userdata", len(ud), count)
 					} else {
 						log.Printf("INFO: Waiting for %s key to be available", udCount)
 					}
