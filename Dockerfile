@@ -5,7 +5,7 @@ COPY glide* ./
 RUN glide install -v
 COPY . ./
 RUN go test $(glide nv) && \
-    go build -buildmode=exe -a -o /bin/scaleway-coreos-custom-metadata ./main.go
+    go build -ldflags="-s -w" -buildmode=exe -a -o /bin/scaleway-coreos-custom-metadata ./main.go
 
 FROM alpine
 COPY --from=builder /bin/scaleway-coreos-custom-metadata /bin/scaleway-coreos-custom-metadata
