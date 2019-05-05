@@ -66,6 +66,13 @@ func getRawString(client httpGetter, url string) (string, error) {
 	return "", errors.New("failed to fetch data: retried 5 times")
 }
 
+func Key(client httpGetter, elt string) (string, error) {
+	item, err := getRawString(client, fmt.Sprintf("%s/%s", "http://169.254.42.42/user_data", elt))
+	if err != nil {
+		return "", fmt.Errorf("failed to read key %s: %v", elt, err)
+	}
+	return item, nil
+}
 func Self(client httpGetter) (Userdata, error) {
 	data := Userdata{}
 	list := useradataList{}
@@ -74,7 +81,7 @@ func Self(client httpGetter) (Userdata, error) {
 		return nil, fmt.Errorf("failed to read key list: %v", err)
 	}
 	for _, elt := range list.UserData {
-		item, err := getRawString(client, fmt.Sprintf("%s/%s", "http://169.254.42.42/user_data", elt))
+		item, err := Key(client, elt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read key %s: %v", elt, err)
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -13,9 +14,9 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
-	"github.com/alecthomas/template"
 	"github.com/jbonachera/scaleway-coreos-custom-metadata/metadata"
 	"github.com/jbonachera/scaleway-coreos-custom-metadata/state"
 	"github.com/jbonachera/scaleway-coreos-custom-metadata/userdata"
@@ -191,6 +192,37 @@ func fail(action string, err error) error {
 	return fmt.Errorf("failed to %s: %v", action, err)
 }
 
+func CloudInit() *cobra.Command {
+	return &cobra.Command{
+		Use:   "cloud-init",
+		Short: "fetch ignition-data from cloud-init API",
+		Run: func(_ *cobra.Command, args []string) {
+			client := httpClient()
+			path := "/usr/share/oem/cloud-init.json"
+			ticker := time.NewTicker(5 * time.Second)
+			defer ticker.Stop()
+			retries := 15
+			for retries > 0 {
+				ud, err := userdata.Key(client, "cloud-init")
+				if err == nil && ud != "" && ud != "Invalid key" {
+					buf := bytes.NewBufferString(ud)
+					fd, err := os.Create(path)
+					if err != nil {
+						log.Fatal(err)
+					}
+					io.Copy(fd, buf)
+					fd.Close()
+					log.Printf("INFO: saved cloud-init data in %s", path)
+					return
+				}
+				log.Printf("INFO: waiting for cloud-init data (%d retries left)", retries)
+				retries--
+				<-ticker.C
+			}
+			log.Print("INFO: aborting")
+		},
+	}
+}
 func SSHKeys() *cobra.Command {
 	return &cobra.Command{
 		Use:   "ssh-keys",
@@ -299,5 +331,6 @@ func main() {
 	}
 	app.Flags().StringP("wait-for-userdata-count", "c", "", "wait for the given key to appear, and consider its content as the number of keys to wait")
 	app.AddCommand(SSHKeys())
+	app.AddCommand(CloudInit())
 	app.Execute()
 }
