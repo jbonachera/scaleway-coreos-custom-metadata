@@ -193,12 +193,25 @@ func fail(action string, err error) error {
 }
 
 func CloudInit() *cobra.Command {
-	return &cobra.Command{
+	c := &cobra.Command{
 		Use:   "cloud-init",
 		Short: "fetch ignition-data from cloud-init API",
-		Run: func(_ *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 			client := httpClient()
-			path := "/usr/share/oem/cloud-init.json"
+			path, err := cmd.Flags().GetString("out")
+			if err != nil {
+				log.Fatal(err)
+			}
+			var fd io.WriteCloser
+			if path == "-" {
+				fd = os.Stdout
+			} else {
+				fd, err = os.Create(path)
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer fd.Close()
+			}
 			ticker := time.NewTicker(5 * time.Second)
 			defer ticker.Stop()
 			retries := 15
@@ -206,12 +219,7 @@ func CloudInit() *cobra.Command {
 				ud, err := userdata.Key(client, "cloud-init")
 				if err == nil && ud != "" && ud != "Invalid key" {
 					buf := bytes.NewBufferString(ud)
-					fd, err := os.Create(path)
-					if err != nil {
-						log.Fatal(err)
-					}
 					io.Copy(fd, buf)
-					fd.Close()
 					log.Printf("INFO: saved cloud-init data in %s", path)
 					return
 				}
@@ -222,6 +230,8 @@ func CloudInit() *cobra.Command {
 			log.Print("INFO: aborting")
 		},
 	}
+	c.Flags().StringP("out", "o", "/usr/share/oem/cloud-init.json", "write cloud-init data in this file")
+	return c
 }
 func SSHKeys() *cobra.Command {
 	return &cobra.Command{
